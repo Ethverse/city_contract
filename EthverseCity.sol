@@ -126,11 +126,11 @@ contract EthverseCity is Context, ERC165, IERC721, IERC721Metadata, IERC721Enume
     /**
      * @dev Initializes the contract by setting a `name` and a `symbol` to the token collection.
      */
-    constructor (string memory name_, string memory symbol_) public {
-        _name = name_;
-        _symbol = symbol_;
+    constructor () public {
+        _name = "Ethverse Cities NFT";
+        _symbol = "ETHV-C";
         
-        _setBaseURI('ipfs://ipfs/');
+        _setBaseURI('https://ethverse.com/nft/meta/');
 
         // register the supported interfaces to conform to ERC721 via ERC165
         _registerInterface(_INTERFACE_ID_ERC721);
@@ -516,15 +516,15 @@ contract EthverseCity is Context, ERC165, IERC721, IERC721Metadata, IERC721Enume
 	
 	
 	
-	// custom functions
+    // custom functions
 
-    modifier governerOnly(uint256 _city) {
-        require(city[_city].governer == msg.sender, "Your are not the Governer of City");
+    modifier governorOnly(uint256 _city) {
+        require(city[_city].governor == msg.sender, "You are not the Governor of City");
         _;
     }
     
     
-    uint nonce;
+    uint internal nonce;
     address public ethv;
     uint256 public createCityFee;
     
@@ -536,7 +536,7 @@ contract EthverseCity is Context, ERC165, IERC721, IERC721Metadata, IERC721Enume
     struct CityMeta {
         string name;
         string ip;
-        address governer;
+        address governor;
         address creator;
         uint created_on;
     }
@@ -562,8 +562,7 @@ contract EthverseCity is Context, ERC165, IERC721, IERC721Metadata, IERC721Enume
     
     
     
-    // City Functions
-    function createCity(string calldata _cityName, string calldata _ip, address _governer, string calldata _uri) external returns(uint256 _id) {
+    function createCity(string calldata _cityName, string calldata _ip, address _governor, string calldata _uri) external onlyOwner returns(uint256 _id) {
         string memory _cityNameLower = _toLower(_cityName);
         require(cityNames[_cityNameLower] == 0, "City Already Exists");
         
@@ -572,26 +571,38 @@ contract EthverseCity is Context, ERC165, IERC721, IERC721Metadata, IERC721Enume
             IETHVBasic(ethv).burn(createCityFee);
         }
         
+        
         _id = ++nonce;
         
-        _mint(_governer, _id);
+        _mint(_governor, _id);
         _setTokenURI(_id, _uri);
         
         cityNames[_cityNameLower] = _id;
-        city[_id] = CityMeta({name: _cityNameLower, ip: _ip, governer: _governer, creator: msg.sender, created_on: block.timestamp});
+        city[_id] = CityMeta({name: _cityNameLower, ip: _ip, governor: _governor, creator: msg.sender, created_on: block.timestamp});
         
     }
     
     
-    function uodateCityIP(uint256 _city, string calldata _ip) external governerOnly(_city) {
+    function updateBaseURI(string calldata _uri) external onlyOwner {
+        _setBaseURI(_uri);
+    }
+    
+    
+    function updateCityName(uint256 _city, string calldata _cityName) external governorOnly(_city) {
+        CityMeta storage cM = city[_city];
+        cM.name = _cityName;
+    }
+    
+    
+    function updateCityIP(uint256 _city, string calldata _ip) external governorOnly(_city) {
         CityMeta storage cM = city[_city];
         cM.ip = _ip;
     }
     
     
-    function uodateCityGoverner(uint256 _city, address _governer) external governerOnly(_city) {
+    function updateCitygovernor(uint256 _city, address _governor) external governorOnly(_city) {
         CityMeta storage cM = city[_city];
-        cM.governer = _governer;
+        cM.governor = _governor;
     }
     
     
@@ -609,21 +620,26 @@ contract EthverseCity is Context, ERC165, IERC721, IERC721Metadata, IERC721Enume
     function getCityMeta(uint256 _city) external view returns(string memory, string memory, address, address, uint) {
         CityMeta storage cM = city[_city];
         
-        return (cM.name, cM.ip, cM.governer, cM.creator, cM.created_on);
+        return (cM.name, cM.ip, cM.governor, cM.creator, cM.created_on);
     }
     
     
-    function getCityGoverner(uint256 _city) external view returns(address) {
+    function getCitygovernor(uint256 _city) external view returns(address) {
         CityMeta storage cM = city[_city];
         
-        return cM.governer;
+        return cM.governor;
     }
     
     
     function getCityMetaByName(string calldata _cityName) external view returns(string memory, string memory, address, address, uint) {
         CityMeta storage cM = city[cityNames[_cityName]];
         
-        return (cM.name, cM.ip, cM.governer, cM.creator, cM.created_on);
+        return (cM.name, cM.ip, cM.governor, cM.creator, cM.created_on);
+    }
+    
+    
+    function getCityIDByName(string calldata _cityName) external view returns(uint) {
+        return cityNames[_cityName];
     }
     
     
